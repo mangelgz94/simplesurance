@@ -1,0 +1,13 @@
+version: '3.9'
+
+services:
+  simplesurance-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - API_PORT=8090
+      - PREVIOUS_TIME=60
+      - FILE_LOCATION=../file.txt
+    ports:
+      - 8090:8090
