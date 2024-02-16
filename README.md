@@ -27,5 +27,5 @@ Shows how many requests had been done in the past X amount of seconds.
 
 `PREVIOUS_TIME`: Default `60`
 
-`FILE_LOCATION`: Default `../file.txt`
+`FILE_LOCATION`: Default `../files_repository/file.txt`
 

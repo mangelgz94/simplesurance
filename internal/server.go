@@ -3,10 +3,11 @@ package internal
 import (
 	"context"
 	"encoding/json"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	"regexp"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 )
 
 type service interface {

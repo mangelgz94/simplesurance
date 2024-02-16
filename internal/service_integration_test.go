@@ -5,11 +5,12 @@ package internal_test
 
 import (
 	"context"
-	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/errgroup"
 	"os"
-	"simplesurance/internal"
 	"testing"
+
+	"github.com/mangelgz94/simplesurance/internal"
+	"github.com/stretchr/testify/suite"
 )
 
 type serviceIntegrationTestSuite struct {

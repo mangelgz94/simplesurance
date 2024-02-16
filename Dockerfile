@@ -7,6 +7,8 @@ COPY go.mod ./
 COPY go.sum ./
 RUN go mod download
 
+RUN mkdir -p /files_repository
+
 COPY . .
 
 RUN go build -o ./api -ldflags "-X main.BuildVersion=1" ./cmd

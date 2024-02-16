@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"simplesurance/internal"
 	"strconv"
 	"syscall"
 
+	"github.com/mangelgz94/simplesurance/internal"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -22,7 +22,7 @@ func main() {
 	errGroup := new(errgroup.Group)
 	errGroup.Go(func() error {
 		serviceConfig := &internal.Config{
-			FileLocation: "../file.txt",
+			FileLocation: "../files_repository/file.txt",
 			PreviousTime: 60,
 		}
 		apiPort := 8090

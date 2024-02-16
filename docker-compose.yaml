@@ -8,6 +8,6 @@ services:
     environment:
       - API_PORT=8090
       - PREVIOUS_TIME=60
-      - FILE_LOCATION=../file.txt
+      - FILE_LOCATION=../files_repository/file.txt
     ports:
       - 8090:8090
