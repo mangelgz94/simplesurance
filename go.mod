@@ -1,4 +1,4 @@
-module simplesurance
+module github.com/mangelgz94/simplesurance
 
 go 1.21
 
