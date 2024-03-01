@@ -17,6 +17,12 @@ import (
 
 var httpServer *http.Server
 
+type service interface {
+	Shutdown() error
+}
+
+var fileService service
+
 func main() {
 	logrus.Info("Starting api")
 	errGroup := new(errgroup.Group)
@@ -51,12 +57,43 @@ func main() {
 			serviceConfig.PreviousTime = int64(previousTime)
 		}
 
+		serverConfig := &internal.ServerConfig{
+			MaxConnections: 5,
+			SleepTime:      2,
+		}
+
+		if os.Getenv("MAX_CONNECTIONS") != "" {
+			envMaxConnections, err := strconv.Atoi(os.Getenv("MAX_CONNECTIONS"))
+			if err != nil {
+				logrus.Errorf("invalid max connections, %s", os.Getenv("MAX_CONNECTIONS"))
+				os.Exit(0)
+			}
+
+			serverConfig.MaxConnections = envMaxConnections
+		}
+
+		if os.Getenv("SLEEP_TIME") != "" {
+			envSleepTime, err := strconv.Atoi(os.Getenv("SLEEP_TIME"))
+			if err != nil {
+				logrus.Errorf("invalid sleep time, %s", os.Getenv("SLEEP_TIME"))
+				os.Exit(0)
+			}
+
+			serverConfig.SleepTime = envSleepTime
+		}
+
+		service, err := internal.NewService(serviceConfig)
+		if err != nil {
+			return errors.Wrap(err, "internal NewService")
+		}
+		fileService = service
+
 		httpServer = &http.Server{
-			Handler: internal.NewHandler(internal.NewService(serviceConfig)),
+			Handler: internal.NewHandler(service, serverConfig),
 			Addr:    fmt.Sprintf(":%d", apiPort),
 		}
 
-		err := httpServer.ListenAndServe()
+		err = httpServer.ListenAndServe()
 		if err != nil {
 
 			return errors.Wrap(err, "httpServer ListenAndServe")
@@ -71,6 +108,7 @@ func main() {
 		<-c
 		logrus.Info("API stopping")
 		httpServer.Shutdown(context.Background())
+		fileService.Shutdown()
 		os.Exit(0)
 		return nil
 	})

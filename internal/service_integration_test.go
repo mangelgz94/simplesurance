@@ -28,10 +28,15 @@ func (suite *serviceIntegrationTestSuite) TestGetPreviousTotalRequestsWithConcur
 	defer os.Remove(fileName)
 
 	requestAmount := 60
-	service := internal.NewService(&internal.Config{
+	service, err := internal.NewService(&internal.Config{
 		FileLocation: fileName,
 		PreviousTime: int64(requestAmount),
 	})
+	if err != nil {
+		suite.Failf("failed test - ", "failed to create service, %v", err)
+		return
+	}
+	defer service.Shutdown()
 
 	errGroup := errgroup.Group{}
 	for i := 0; i < requestAmount; i++ {
@@ -47,13 +52,12 @@ func (suite *serviceIntegrationTestSuite) TestGetPreviousTotalRequestsWithConcur
 	}
 
 	if err := errGroup.Wait(); err != nil {
-		suite.Failf("failed test - ", "test get previous total requests with concurrent calls faield, %v", err)
+		suite.Failf("failed test - ", "test get previous total requests with concurrent calls failed, %v", err)
 
 		return
 	}
 
 	counter, err := service.GetPreviousTotalRequests(context.Background())
-
 	suite.Equal(counter, requestAmount+1)
 }
 

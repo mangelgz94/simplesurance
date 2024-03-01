@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -25,16 +26,31 @@ type route struct {
 }
 
 type Handler struct {
-	service service
+	service      service
+	requestsPool chan bool
+	config       *ServerConfig
 }
 
-func NewHandler(service service) *Handler {
+type ServerConfig struct {
+	MaxConnections int
+	SleepTime      int
+}
+
+func NewHandler(service service, config *ServerConfig) *Handler {
 	return &Handler{
-		service: service,
+		service:      service,
+		requestsPool: make(chan bool, config.MaxConnections),
+		config:       config,
 	}
 }
 
 func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.requestsPool <- true
+	defer func() {
+		<-s.requestsPool
+	}()
+	time.Sleep(time.Duration(s.config.SleepTime) * time.Second)
+
 	var allow []string
 	route := route{"GET", regexp.MustCompile("^/$"), s.getPreviousTotalRequests}
 

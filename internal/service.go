@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 	"os"
-	"syscall"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -12,6 +12,8 @@ import (
 
 type Service struct {
 	config *Config
+	file   *os.File
+	mu     sync.Mutex
 }
 
 type Config struct {
@@ -19,72 +21,55 @@ type Config struct {
 	PreviousTime int64
 }
 
-func NewService(config *Config) *Service {
+func NewService(config *Config) (*Service, error) {
+	file, err := os.OpenFile(config.FileLocation, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		return nil, errors.Wrap(err, "os OpenFile")
+	}
 	return &Service{
 		config: config,
+		file:   file,
+	}, nil
+}
+
+func (s *Service) Shutdown() error {
+	if s.file == nil {
+		return nil
 	}
+	err := s.file.Close()
+	if err != nil {
+		return errors.Wrap(err, "file Close")
+	}
+
+	return nil
 }
 
 func (s *Service) GetPreviousTotalRequests(ctx context.Context) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	now := time.Now()
-	bytesNumber, err := s.writeToFile(now)
+	bytesNumber, err := s.file.WriteString(now.Format(time.RFC3339))
 	if err != nil {
 		return 0, errors.Wrap(err, "writeToFile")
 	}
 
-	return s.scanPreviousTotalRequests(bytesNumber, now)
+	return s.scanRows(bytesNumber, now)
 }
 
-func (s *Service) writeToFile(now time.Time) (int, error) {
-	file, err := os.OpenFile(s.config.FileLocation, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return 0, errors.Wrap(err, "os OpenFile")
-	}
-	defer file.Close()
-
-	err = syscall.Flock(int(file.Fd()), syscall.LOCK_EX)
-	if err != nil {
-		return 0, errors.Wrap(err, "syscall Flock")
-	}
-	defer syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
-
-	n, err := file.WriteString(now.Format(time.RFC3339))
-	if err != nil {
-		return 0, errors.Wrap(err, "file WriteString")
-	}
-
-	return n, nil
-}
-
-func (s *Service) scanPreviousTotalRequests(byteNumber int, now time.Time) (int, error) {
-	file, err := os.Open(s.config.FileLocation)
-	if err != nil {
-		return 0, errors.Wrap(err, "os Open")
-	}
-	defer file.Close()
-
-	err = syscall.Flock(int(file.Fd()), syscall.LOCK_EX)
-	if err != nil {
-		return 0, errors.Wrap(err, "syscall Flock")
-	}
-	defer syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
-
-	return s.scanRows(byteNumber, file, now)
-}
-
-func (s *Service) scanRows(bytesNumber int, file *os.File, now time.Time) (int, error) {
+func (s *Service) scanRows(bytesNumber int, now time.Time) (int, error) {
 	var counter int
 	beforeNow := now.Add(-time.Second * time.Duration(s.config.PreviousTime))
 	bytesAmount := bytesNumber
 
 	for {
-		offset, err := file.Seek(-int64(bytesAmount), io.SeekEnd)
+		offset, err := s.file.Seek(-int64(bytesAmount), io.SeekEnd)
 		if err != nil {
 			return 0, errors.Wrap(err, "file Seek")
 		}
 
 		buffer := make([]byte, bytesNumber)
-		_, err = file.Read(buffer)
+		_, err = s.file.Read(buffer)
 		if err != nil {
 			return 0, errors.Wrap(err, "file Read")
 		}
